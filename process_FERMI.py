@@ -70,19 +70,18 @@ def get_exp_dataframe(folder, recursive=True, keys={}):
     skip_keys = ['image']  # don't load these
     for h5file in flist:
         try:
-            h5 = h5py.File(h5file, mode='r')
-            info = dict(filename=h5file)
-            for k, v in exp_keys.items():
-                if k not in skip_keys:
-                    try:
-                        val = h5[v][()]
-                        val = val.decode() if isinstance(val, bytes) else val
-                        info.update({k: val})
-                    except KeyError:
-                        pass
-                        # info.update({k: np.nan})
-            exp.append(info)
-            h5.close()
+            with h5py.File(h5file, mode='r') as h5:
+                info = dict(filename=h5file)
+                for k, v in exp_keys.items():
+                    if k not in skip_keys:
+                        try:
+                            val = h5[v][()]
+                            val = val.decode() if isinstance(val, bytes) else val
+                            info.update({k: val})
+                        except KeyError:
+                            pass
+                            # info.update({k: np.nan})
+                exp.append(info)
         except:
             raise
     exp = pd.DataFrame(exp)
