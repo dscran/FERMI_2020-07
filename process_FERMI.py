@@ -3,7 +3,9 @@ Created on Tue, Jun 30 2020
 
 FERMI specific helper functions
 
-@author: Michael Schneider, MBI Berlin
+@author:
+    Michael Schneider, MBI Berlin
+    Kathinka Gerlinger, MBI Berlin
 """
 
 
@@ -223,9 +225,9 @@ class AzimuthalIntegrator(object):
         self.distance = np.array([])
         self.flat_indices = []
         for d in range(nint - 1):
-            ring_mask = self.polar_mask * (dist_array >= r_bin[d]) * (dist_array < r_bin[d+1])
+            ring_mask = self.polar_mask * (dist_array >= r_bin[d]) * (dist_array < r_bin[d + 1])
             self.flat_indices.append(self.index_array[ring_mask])
-            self.distance = np.append(self.distance, d)
+            self.distance = np.append(self.distance, rbin[d])
     
     def __call__(self, image):
         assert self.shape == image.shape, 'image shape does not match'
