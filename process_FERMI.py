@@ -130,7 +130,7 @@ def loadh5(filename, extra_keys=[], correct_seed=True, ccd=True, on_error='pass'
 
 
 class AzimuthalIntegrator(object):
-    def __init__(self, imageshape, center, polar_range, dr=2, rmin=0):
+    def __init__(self, imageshape, dist, center, polar_range, pxsize=13.5e-6, rmin=0, nint=100):
         '''
         Create a reusable integrator for repeated azimuthal integration of similar
         images. Calculates array indices for a given parameter set that allows
@@ -141,8 +141,8 @@ class AzimuthalIntegrator(object):
         imageshape : tuple of ints
             The shape of the images to be integrated over.
         
-        # dist : float
-        #     distance from sample to detector plane center
+        dist : float
+            distance from sample to detector plane center
         
         center : tuple of ints
             center coordinates in pixels
@@ -156,10 +156,13 @@ class AzimuthalIntegrator(object):
         # tilt : float, optional (default 0)
         #     Horizontal tilt angle of the CCD.
         
-        # pxsize : float, optional (default 13.5e-6)
-        #     Size of a single detector pixel.
+        pxsize : float, optional (default 13.5e-6)
+            Size of a single detector pixel.
         
-        rmin : int
+        rmin : int, optional (default 100)
+        
+        nint: int, optional (default 100)
+            number of intervals for the azimuthal integration
             
         
         Returns
@@ -172,7 +175,6 @@ class AzimuthalIntegrator(object):
             > ai.polar_mask
         '''
         self.shape = imageshape
-        self.dr = dr
         cx, cy = center
         sx, sy = imageshape
         xcoord, ycoord = np.ogrid[:sx, :sy]
@@ -181,7 +183,7 @@ class AzimuthalIntegrator(object):
 
         # distance from center
         dist_array = np.hypot(xcoord, ycoord)
-
+        
         # array of polar angles
         tmin, tmax = np.deg2rad(np.sort(polar_range)) % np.pi
         polar_array = np.arctan2(xcoord, ycoord)
@@ -189,17 +191,21 @@ class AzimuthalIntegrator(object):
         self.polar_mask = (polar_array > tmin) * (polar_array < tmax) * (dist_array > rmin)
 
         maxdist = int(min(sx  - cx, sy  - cy))
-        mindist = int(max(rmin, dr))
+        
+        # find maximal q and create bins with constant difference in q
+        theta_max = np.arctan(maxdist/dist)
+        dth = np.linspace(0, theta_max, nint)
+        r_bin = np.round(np.tan(dth) * dist / pxsize).astype(int)
 
         ix, iy = np.indices(dimensions=(sx, sy))
         self.index_array = np.ravel_multi_index((ix, iy), (sx, sy))
 
         self.distance = np.array([])
         self.flat_indices = []
-        for dist in range(mindist, maxdist, dr):
-            ring_mask = self.polar_mask * (dist_array >= (dist - dr)) * (dist_array < dist)
+        for d in range(nint - 1):
+            ring_mask = self.polar_mask * (dist_array >= r_bin[d]) * (dist_array < r_bin[d + 1])
             self.flat_indices.append(self.index_array[ring_mask])
-            self.distance = np.append(self.distance, dist)
+            self.distance = np.append(self.distance, d)
     
     def __call__(self, image):
         assert self.shape == image.shape, 'image shape does not match'
