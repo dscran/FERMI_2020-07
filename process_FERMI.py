@@ -212,7 +212,7 @@ class AzimuthalIntegrator(object):
         polar_array = np.mod(polar_array, np.pi)
         self.polar_mask = (polar_array > tmin) * (polar_array < tmax) * (dist_array > rmin)
 
-        maxdist = int(min(sx  - cx, sy  - cy))
+        maxdist = np.round(np.max([sx-cx, cx, sy-cy, cy])).astype(int)
 
         # linear q bins
         theta_max = np.arctan(pxsize * maxdist / dist)
