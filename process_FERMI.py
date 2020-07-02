@@ -222,12 +222,12 @@ class AzimuthalIntegrator(object):
         ix, iy = np.indices(dimensions=(sx, sy))
         self.index_array = np.ravel_multi_index((ix, iy), (sx, sy))
 
-        self.distance = np.array([])
+        self.theta = np.array([])
         self.flat_indices = []
         for d in range(nint - 1):
             ring_mask = self.polar_mask * (dist_array >= r_bin[d]) * (dist_array < r_bin[d + 1])
             self.flat_indices.append(self.index_array[ring_mask])
-            self.distance = np.append(self.distance, r_bin[d])
+            self.theta = np.append(self.theta, dth[d])
     
     def __call__(self, image):
         assert self.shape == image.shape, 'image shape does not match'
