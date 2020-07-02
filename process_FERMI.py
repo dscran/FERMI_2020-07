@@ -3,7 +3,9 @@ Created on Tue, Jun 30 2020
 
 FERMI specific helper functions
 
-@author: Michael Schneider, MBI Berlin
+@author:
+    Michael Schneider, MBI Berlin
+    Kathinka Gerlinger, MBI Berlin
 """
 
 
@@ -89,32 +91,52 @@ def get_exp_dataframe(folder, recursive=True, keys={}):
     return exp
 
 
-def loadh5(filename, extra_keys=[], correct_seed=True, ccd=True, on_error='pass'):
+def loadh5(filename, extra_keys=[], ccd=True, on_error='pass'):
     '''
     Loads CCD image and bunch energy E_tot(µJ).
     
-    Additional keys may be specified as iterable or dictionary
-    {'name': 'hdf5 dataset path'}.
+    Parameters
+    ==========
+    filename : str
+        hdf file path/name
+       
+    extra_keys : list, optional
+        list of mnmemonics or hdf data paths
+       
+    ccd : boolean, optional (default True)
+        whether to return the CCD image
     
+    on_error : str, optional (default 'pass')
+        ignore KeyErrors in hdf file ('raise', default) or throw error ('raise')
+        
+    Returns
+    =======
+    image : np.array
+        the CCD image (only if ccd=True)
+    
+    meta : dict
+        non-image data
+    
+    Notes
+    =====
     FERMI's GMD is upstream of the last filter (seed filter). The shot-energy
     needs to be corrected for the filter transmission at the experiment's
     wavelength.
     '''
-    _h5_CCDpath = 'image/ccd1'
+    _h5_CCDpath = mnemonics['image']
     _h5_I0path = 'photon_diagnostics/FEL01/I0_monitor/iom_sh_a'
     meta = {}
     with h5py.File(filename, 'r') as h5file:
-        if ccd:
-            image = np.array(h5file[_h5_CCDpath], dtype=np.int32)
 #        meta.update({'I0M': np.array(h5file[_h5_I0path], dtype=np.float)})
 #        seed = h5file[_h5_seed_filter][()]
+        if ccd:
+            image = h5file[_h5_CCDpath][()]
         I0M = h5file[_h5_I0path][()]
         meta.update({'I0M': I0M})
-        if not isinstance(extra_keys, dict):
-            extra_keys = {str(k): k for k in extra_keys}
-        for key, h5path in extra_keys.items():
+        for k in extra_keys:
             try:
-                meta.update({key: h5file[h5path][()]})
+                h5path = mnemonics[k] if k in mnemonics else k
+                meta.update({k: h5file[h5path][()]})
             except KeyError:
                 meta.update({key: np.nan})
                 if on_error == 'raise':
@@ -127,6 +149,8 @@ def loadh5(filename, extra_keys=[], correct_seed=True, ccd=True, on_error='pass'
         return image, meta
     else:
         return meta
+
+
 
 
 class AzimuthalIntegrator(object):
@@ -142,7 +166,7 @@ class AzimuthalIntegrator(object):
             The shape of the images to be integrated over.
         
         dist : float
-            distance from sample to detector plane center
+            distance from sample to detector plane center in meter
         
         center : tuple of ints
             center coordinates in pixels
@@ -150,19 +174,17 @@ class AzimuthalIntegrator(object):
         polar_range : tuple of ints
             start and stop polar angle (in degrees) to restrict integration to wedges
         
-        dr : int, optional (default 2)
-            radial width of the integration slices.
-           
+        
         # tilt : float, optional (default 0)
         #     Horizontal tilt angle of the CCD.
         
         pxsize : float, optional (default 13.5e-6)
-            Size of a single detector pixel.
+            Size of a single detector pixel in meter
         
-        rmin : int, optional (default 100)
-        
+        rmin : int, optional (default 0)
+
         nint: int, optional (default 100)
-            number of intervals for the azimuthal integration
+            number of intervals
             
         
         Returns
@@ -183,7 +205,7 @@ class AzimuthalIntegrator(object):
 
         # distance from center
         dist_array = np.hypot(xcoord, ycoord)
-        
+
         # array of polar angles
         tmin, tmax = np.deg2rad(np.sort(polar_range)) % np.pi
         polar_array = np.arctan2(xcoord, ycoord)
@@ -191,21 +213,21 @@ class AzimuthalIntegrator(object):
         self.polar_mask = (polar_array > tmin) * (polar_array < tmax) * (dist_array > rmin)
 
         maxdist = int(min(sx  - cx, sy  - cy))
-        
-        # find maximal q and create bins with constant difference in q
-        theta_max = np.arctan(maxdist/dist)
+
+        # linear q bins
+        theta_max = np.arctan(pxsize * maxdist / dist)
         dth = np.linspace(0, theta_max, nint)
         r_bin = np.round(np.tan(dth) * dist / pxsize).astype(int)
 
         ix, iy = np.indices(dimensions=(sx, sy))
         self.index_array = np.ravel_multi_index((ix, iy), (sx, sy))
 
-        self.distance = np.array([])
+        self.theta = np.array([])
         self.flat_indices = []
         for d in range(nint - 1):
             ring_mask = self.polar_mask * (dist_array >= r_bin[d]) * (dist_array < r_bin[d + 1])
             self.flat_indices.append(self.index_array[ring_mask])
-            self.distance = np.append(self.distance, d)
+            self.theta = np.append(self.theta, dth[d])
     
     def __call__(self, image):
         assert self.shape == image.shape, 'image shape does not match'
