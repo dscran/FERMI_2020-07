@@ -89,32 +89,52 @@ def get_exp_dataframe(folder, recursive=True, keys={}):
     return exp
 
 
-def loadh5(filename, extra_keys=[], correct_seed=True, ccd=True, on_error='pass'):
+def loadh5(filename, extra_keys=[], ccd=True, on_error='pass'):
     '''
     Loads CCD image and bunch energy E_tot(µJ).
     
-    Additional keys may be specified as iterable or dictionary
-    {'name': 'hdf5 dataset path'}.
+    Parameters
+    ==========
+    filename : str
+        hdf file path/name
+       
+    extra_keys : list, optional
+        list of mnmemonics or hdf data paths
+       
+    ccd : boolean, optional (default True)
+        whether to return the CCD image
     
+    on_error : str, optional (default 'pass')
+        ignore KeyErrors in hdf file ('raise', default) or throw error ('raise')
+        
+    Returns
+    =======
+    image : np.array
+        the CCD image (only if ccd=True)
+    
+    meta : dict
+        non-image data
+    
+    Notes
+    =====
     FERMI's GMD is upstream of the last filter (seed filter). The shot-energy
     needs to be corrected for the filter transmission at the experiment's
     wavelength.
     '''
-    _h5_CCDpath = 'image/ccd1'
+    _h5_CCDpath = mnemonics['image']
     _h5_I0path = 'photon_diagnostics/FEL01/I0_monitor/iom_sh_a'
     meta = {}
     with h5py.File(filename, 'r') as h5file:
-        if ccd:
-            image = np.array(h5file[_h5_CCDpath], dtype=np.int32)
 #        meta.update({'I0M': np.array(h5file[_h5_I0path], dtype=np.float)})
 #        seed = h5file[_h5_seed_filter][()]
+        if ccd:
+            image = h5file[_h5_CCDpath][()]
         I0M = h5file[_h5_I0path][()]
         meta.update({'I0M': I0M})
-        if not isinstance(extra_keys, dict):
-            extra_keys = {str(k): k for k in extra_keys}
-        for key, h5path in extra_keys.items():
+        for k in extra_keys:
             try:
-                meta.update({key: h5file[h5path][()]})
+                h5path = mnemonics[k] if k in mnemonics else k
+                meta.update({k: h5file[h5path][()]})
             except KeyError:
                 meta.update({key: np.nan})
                 if on_error == 'raise':
