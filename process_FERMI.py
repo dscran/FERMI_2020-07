@@ -215,7 +215,7 @@ class AzimuthalIntegrator(object):
         maxdist = int(min(sx  - cx, sy  - cy))
 
         # linear q bins
-        theta_max = np.arctan(maxdist/dist)
+        theta_max = np.arctan(pxsize * maxdist / dist)
         dth = np.linspace(0, theta_max, nint)
         r_bin = np.round(np.tan(dth) * dist / pxsize).astype(int)
 
@@ -227,7 +227,7 @@ class AzimuthalIntegrator(object):
         for d in range(nint - 1):
             ring_mask = self.polar_mask * (dist_array >= r_bin[d]) * (dist_array < r_bin[d + 1])
             self.flat_indices.append(self.index_array[ring_mask])
-            self.distance = np.append(self.distance, rbin[d])
+            self.distance = np.append(self.distance, r_bin[d])
     
     def __call__(self, image):
         assert self.shape == image.shape, 'image shape does not match'
