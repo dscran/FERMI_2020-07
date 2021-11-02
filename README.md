@@ -1,3 +1,4 @@
-# FERMI_2020-07
+# FERMI_2021-11
 
+Update of the code for the beamtime in November 2021.
 
