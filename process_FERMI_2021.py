@@ -188,6 +188,30 @@ def loadh5(filename, extra_keys={}, ccd=True, on_error='pass'):
     else:
         return meta
 
+def load_image_diodenorm(fname, dark, normkey = 'PAM/FQPDSum'):
+    '''
+    Loads CCD image and normalizes it to the given key.
+    
+    Parameters
+    ==========
+    fname : str
+        hdf file path/name
+       
+    dark : array
+        dark file
+       
+    normkey : str, optional (default 'PAM/FQPDSum')
+        hdf5 key for which to normalize
+        
+    Returns
+    =======
+    im : np.array
+        the normalized CCD image with dark substracted
+    '''
+    im, meta = loadh5(fname, extra_keys=[normkey])
+    im = (im - dark)/np.sum(meta[normkey])
+    return im
+    
     
 def zero_slope(data, chunksize = 500, max_slope = 4e-7):
     '''
